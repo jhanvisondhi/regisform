@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# .gitignore
+backend/nist-a4a42-firebase-adminsdk-ca537-0cf2e15861.json
+.env
