@@ -1,57 +1,56 @@
 require("dotenv").config();
 const express = require("express");
-const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const admin = require("firebase-admin");
+
+// Initialize Firebase Admin
+const serviceAccount = require("./nist-a4a42-firebase-adminsdk-ca537-0cf2e15861.json"); // path to your Firebase private key JSON file
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const db = admin.firestore();
 
 // Initialize app
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
-
-// MongoDB Connection
-mongoose
-  .connect(
-    "mongodb+srv://Jhanvi21:<db_password>@cluster0.ffhsv.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-    { useNewUrlParser: true, useUnifiedTopology: true }
-  )
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.error("Connection Error:", err));
-
-// Schema and Model
-const RegistrationSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true },
-  eventDate: { type: Date, required: true },
-  imageUrl: { type: String },
-  message: { type: String },
-  eventName: { type: String, required: true },
-});
-
-const Registration = mongoose.model("Registration", RegistrationSchema);
+app.use(bodyParser.json()); // Using Express built-in JSON middleware
 
 // Routes
 app.post("/register", async (req, res) => {
   const { name, email, eventDate, imageUrl, message, eventName } = req.body;
 
+  // Log incoming data for debugging
+  console.log("Received data:", req.body);
+
+  // Simple validation for required fields
+  if (!name || !email || !eventDate || !eventName) {
+    return res.status(400).json({ message: "Missing required fields." });
+  }
+
   try {
-    const registration = new Registration({
+    // Firestore document data
+    const registrationData = {
       name,
       email,
       eventDate,
       imageUrl,
       message,
       eventName,
-    });
+      timestamp: admin.firestore.FieldValue.serverTimestamp(), // Automatically adds server timestamp
+    };
 
-    await registration.save();
-    res.status(201).send({ message: "Registration successful!" });
+    // Save registration to Firestore
+    await db.collection("registrations").add(registrationData);
+
+    res.status(201).json({ message: "Registration successful!" });
   } catch (err) {
     console.error("Error saving registration:", err);
-    res.status(500).send({ message: "Error registering. Try again later." });
+    res.status(500).json({ message: "Error registering. Try again later." });
   }
 });
 
